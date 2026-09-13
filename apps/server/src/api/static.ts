@@ -5,6 +5,7 @@
 import { fileURLToPath } from "node:url";
 import { type Context, Hono } from "hono";
 import { api } from "./routes.ts";
+import { dress } from "./shell.ts";
 import { isViewPath } from "./views.ts";
 
 /** `fileURLToPath`, not `.pathname`: on Windows the latter is `/D:/…`, which no file API opens. */
@@ -22,7 +23,8 @@ async function spa(c: Context): Promise<Response> {
   // existing, which is a crawler's word for a soft 404.
   if (!isViewPath(path)) return c.text("not found", 404);
   const index = asset("index.html");
-  if (await index.exists()) return new Response(index, { headers: { "content-type": "text/html; charset=utf-8" } });
+  if (await index.exists())
+    return dress(new Response(index, { headers: { "content-type": "text/html; charset=utf-8" } }), path);
   return c.text("web app is not built yet — run `bun run build`", 503);
 }
 

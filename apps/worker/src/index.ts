@@ -4,6 +4,7 @@
  * thousand polling readers down to one request per colo per cache window.
  */
 
+import { dress } from "../../server/src/api/shell.ts";
 import { isViewPath } from "../../server/src/api/views.ts";
 import { limits } from "../../server/src/limits.ts";
 import { canonical, named, nameless, throttled, tooMany } from "./cache.ts";
@@ -83,9 +84,11 @@ export default {
       return (await throttled(env.OBJECT_LIMIT, request)) === "over" ? tooMany() : tape(env).fetch(request);
     if (!url.pathname.startsWith("/api/")) {
       // The app draws four screens and the assets hold one page, so a screen's own address
-      // is answered with that page. Everything else the assets do not have stays a 404.
-      const shell = isViewPath(url.pathname) ? new Request(new URL("/", url).toString(), request) : request;
-      return env.ASSETS.fetch(shell);
+      // is answered with that page, wearing that screen's own head. Everything else the
+      // assets do not have stays a 404.
+      if (!isViewPath(url.pathname)) return env.ASSETS.fetch(request);
+      const shell = await env.ASSETS.fetch(new Request(new URL("/", url).toString(), request));
+      return dress(shell, url.pathname);
     }
 
     const response = await answer(request, env, ctx, url);
