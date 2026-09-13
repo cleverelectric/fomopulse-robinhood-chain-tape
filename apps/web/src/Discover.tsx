@@ -18,7 +18,7 @@ function Toggle({ on, off, active, onClick }: { on: string; off: string; active:
 export function Discover() {
   const window = useUi((state) => state.window);
   const filter = useUi((state) => state.filter.trim().toLowerCase());
-  const { sort, flip } = useSort<SortKey>("heat");
+  const { sort, flip } = useSort<SortKey>("alpha");
   const [cuts, setCuts] = useState<Cuts>(CUTS);
   const { data } = useQuery({
     queryKey: ["discover", window],
@@ -29,6 +29,15 @@ export function Discover() {
   });
 
   const all = data ?? [];
+  const duplicateSymbols = new Set(
+    [...new Map(
+      all
+        .filter((row) => row.symbol)
+        .map((row) => [row.symbol!.toLowerCase(), 0]),
+    ).keys()].filter(
+      (symbol) => all.filter((row) => row.symbol?.toLowerCase() === symbol).length > 1,
+    ),
+  );
   const rows = sorted(
     all
       .filter((row) => keep(row, cuts))
@@ -80,6 +89,14 @@ export function Discover() {
             <th className={head} title="a token whose pool opened in the last three days and a tracked wallet bought">
               token
             </th>
+            <SortHeader
+              sort={sort}
+              flip={flip}
+              sortKey="alpha"
+              title="unvalidated heuristic score from wallet crowding, rank, flow, freshness, liquidity and risk penalties"
+            >
+              alpha
+            </SortHeader>
             <SortHeader sort={sort} flip={flip} sortKey="age" title="how long ago the pool opened">
               age
             </SortHeader>
@@ -136,17 +153,23 @@ export function Discover() {
         </thead>
         <tbody>
           {rows.map((row) => (
-            <DiscoverRow key={row.token} row={row} now={now} network={TRACKED_CHAIN} />
+            <DiscoverRow
+              key={row.token}
+              row={row}
+              now={now}
+              network={TRACKED_CHAIN}
+              duplicateSymbol={row.symbol !== null && duplicateSymbols.has(row.symbol.toLowerCase())}
+            />
           ))}
         </tbody>
         <tfoot>
           <tr>
-            <td colSpan={12} className="px-2 py-2 text-[10px] text-dimmer">
+            <td colSpan={13} className="px-2 py-2 text-[10px] text-dimmer">
               in, flow, holders, first in and last are measured on this tape · age, liq, churn, 24h and the market cap
               behind "since" are the price feed's · a pool under $10k, or one whose day's volume is more than twenty
               times its own depth, never reaches this page · over this tape's first days a token only one tracked wallet
               bought was down three times in four, which is what the buyer cut is for · none of this is contract
-              analysis: it says who bought, not that a token is safe
+              analysis: it says who bought, not that a token is safe · alpha is an unvalidated heuristic, not a return forecast
             </td>
           </tr>
         </tfoot>
