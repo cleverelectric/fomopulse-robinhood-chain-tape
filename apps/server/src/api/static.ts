@@ -5,12 +5,25 @@
 import { fileURLToPath } from "node:url";
 import { type Context, Hono } from "hono";
 import { api } from "./routes.ts";
-import { dress } from "./shell.ts";
-import { isViewPath } from "./views.ts";
+import { dress, SOURCE } from "./shell.ts";
+import { isViewPath, trimmed } from "./views.ts";
 
 /** `fileURLToPath`, not `.pathname`: on Windows the latter is `/D:/…`, which no file API opens. */
 const dist = fileURLToPath(new URL("../../../web/dist/", import.meta.url));
 const asset = (path: string) => Bun.file(dist + path.replace(/^\/+/, ""));
+
+/** The screen's own first rows, asked of this process's own API. A page that cannot get them
+ *  is still a page: the head is what a search engine keeps, the rows are what it reads. */
+async function drawn(path: string): Promise<unknown[] | undefined> {
+  const source = SOURCE[trimmed(path)];
+  if (source === undefined) return undefined;
+  try {
+    const response = await api.request(source);
+    return response.ok ? ((await response.json()) as unknown[]) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 async function spa(c: Context): Promise<Response> {
   // Parsed, so `..` is resolved away before it reaches a file API; what is left encoded
@@ -24,7 +37,11 @@ async function spa(c: Context): Promise<Response> {
   if (!isViewPath(path)) return c.text("not found", 404);
   const index = asset("index.html");
   if (await index.exists())
-    return dress(new Response(index, { headers: { "content-type": "text/html; charset=utf-8" } }), path);
+    return dress(
+      new Response(index, { headers: { "content-type": "text/html; charset=utf-8" } }),
+      path,
+      await drawn(path),
+    );
   return c.text("web app is not built yet — run `bun run build`", 503);
 }
 

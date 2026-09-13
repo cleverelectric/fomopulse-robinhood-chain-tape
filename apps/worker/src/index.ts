@@ -4,8 +4,8 @@
  * thousand polling readers down to one request per colo per cache window.
  */
 
-import { dress } from "../../server/src/api/shell.ts";
-import { isViewPath } from "../../server/src/api/views.ts";
+import { dress, SOURCE } from "../../server/src/api/shell.ts";
+import { isViewPath, trimmed } from "../../server/src/api/views.ts";
 import { limits } from "../../server/src/limits.ts";
 import { canonical, named, nameless, throttled, tooMany } from "./cache.ts";
 import type { Env } from "./env.ts";
@@ -72,6 +72,24 @@ async function answer(request: Request, env: Env, ctx: ExecutionContext, url: UR
   return response;
 }
 
+/**
+ * The screen's own first rows, out of the same cache the page's own polling fills — the source
+ * is the address the app asks for, so the two share a key and a colo that has served the page
+ * once answers this for nothing. A miss spends one of the reader's minute like any other, and
+ * a refusal or an error is simply a page without a table on it.
+ */
+async function drawn(request: Request, env: Env, ctx: ExecutionContext, url: URL): Promise<unknown[] | undefined> {
+  const source = SOURCE[trimmed(url.pathname)];
+  if (source === undefined) return undefined;
+  const at = new URL(source, url);
+  try {
+    const response = await answer(new Request(at.toString(), { headers: request.headers }), env, ctx, at);
+    return response.ok ? ((await response.json()) as unknown[]) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
@@ -88,7 +106,7 @@ export default {
       // assets do not have stays a 404.
       if (!isViewPath(url.pathname)) return env.ASSETS.fetch(request);
       const shell = await env.ASSETS.fetch(new Request(new URL("/", url).toString(), request));
-      return dress(shell, url.pathname);
+      return dress(shell, url.pathname, await drawn(request, env, ctx, url));
     }
 
     const response = await answer(request, env, ctx, url);
