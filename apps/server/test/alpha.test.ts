@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { scoreAlpha, type AlphaInput } from "../src/alpha.ts";
+import { type AlphaInput, scoreAlpha } from "../src/alpha.ts";
 
 const NOW = 1_800_000_000;
 
