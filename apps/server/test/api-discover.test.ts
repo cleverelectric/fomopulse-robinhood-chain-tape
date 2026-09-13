@@ -114,6 +114,10 @@ test("a young pool carries this tape's own count of who is in it, and the feed's
     market_cap: 200_000,
     wash: 0,
   });
+  const alpha = row.alpha as { version: string; score: number; breakdown: { penalties: number } };
+  expect(alpha.version).toBe("heuristic-v0");
+  expect(alpha.score).toBeGreaterThan(0);
+  expect(alpha.breakdown.penalties).toBeGreaterThan(0);
   // Bought at a dollar against a two-dollar mark on a $200k token: half the market cap now.
   expect(row.mcap_at).toBeCloseTo(100_000, 6);
   const buyers = row.buyers_list as { handle: string; usd: number }[];
