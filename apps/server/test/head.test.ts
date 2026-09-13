@@ -46,11 +46,19 @@ test("a path no screen answers to is served whatever it was, untouched", async (
   expect(await served("/nowhere")).toBe(source);
 });
 
-test("the sitemap names every screen and nothing the app does not draw", async () => {
+test("the sitemap names every screen, and every address it names is one that answers", async () => {
   const xml = await Bun.file(new URL("../../web/public/sitemap.xml", import.meta.url)).text();
   const listed = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(([, loc]) => loc!);
   // The home page keeps its trailing slash and no other address grows one.
-  expect(listed.sort()).toEqual(VIEW_PATHS.map((path) => `${SITE}${path}`).sort());
+  for (const path of VIEW_PATHS) expect(listed).toContain(`${SITE}${path}`);
+  // Everything else listed is a document served out of the assets under that name.
+  const documents = listed.filter((loc) => !VIEW_PATHS.some((path) => loc === `${SITE}${path}`));
+  for (const loc of documents) {
+    const name = loc.slice(SITE.length);
+    const file = Bun.file(new URL(`../../web/public${name}.html`, import.meta.url));
+    expect({ loc, exists: await file.exists() }).toEqual({ loc, exists: true });
+  }
+  expect(new Set(listed).size).toBe(listed.length);
 });
 
 test("a screen without JavaScript is the screen, not an empty div", async () => {

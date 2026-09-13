@@ -37,6 +37,18 @@ const when = (ts: number | null): string =>
 
 const named = (symbol: string | null, token: string): string => symbol ?? `${token.slice(0, 10)}…`;
 
+/** Where else to go, for the reader and the crawler that got this far without the app. The
+ *  app draws its own navigation once it mounts and this is gone. */
+const LINKS = `<nav>${[
+  ["/", "Live tape"],
+  ["/traders", "Traders"],
+  ["/bags", "Bags"],
+  ["/discover", "Discover"],
+  ["/about", "How the tape is built"],
+]
+  .map(([href, name]) => `<a href="${href}">${name}</a>`)
+  .join(" ")}</nav>`;
+
 const table = (head: string[], rows: string[][]): string =>
   `<table><thead><tr>${head.map((h) => `<th>${escaped(h)}</th>`).join("")}</tr></thead><tbody>${rows
     .map((row) => `<tr>${row.map((cell) => `<td>${escaped(cell)}</td>`).join("")}</tr>`)
@@ -105,7 +117,7 @@ export function dress(html: Response, pathname: string, rows?: unknown[]): Respo
   const body =
     rows === undefined || rows.length === 0
       ? ""
-      : `<h1>${escaped(page.title)}</h1><p>${escaped(page.description)}</p>${rendered(path, rows)}`;
+      : `<h1>${escaped(page.title)}</h1><p>${escaped(page.description)}</p>${rendered(path, rows)}${LINKS}`;
   const rewriter = new HTMLRewriter()
     .on("title", {
       element(el: { setInnerContent(text: string): void }) {

@@ -81,6 +81,14 @@ export function StatusBar({
         </svg>
         <span className="sr-only">source on GitHub</span>
       </a>
+      {/* Not a screen: a document the assets serve, so it is a plain link and not a place. */}
+      <a
+        className="hidden text-dimmer hover:text-fg sm:inline"
+        href="/about"
+        title="how a fill is reconstructed, what the tilde means, and what a discovery has to clear"
+      >
+        how it works
+      </a>
 
       <span className="flex items-center gap-1.5" title={status?.source ?? ""}>
         <span className={`inline-block size-1.5 rounded-full ${live ? "bg-up" : "bg-down"}`} />

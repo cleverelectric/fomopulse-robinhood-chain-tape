@@ -31,6 +31,13 @@ async function spa(c: Context): Promise<Response> {
   const path = new URL(c.req.url).pathname;
   const file = asset(path);
   if (await file.exists()) return new Response(file);
+  // A document is linked without its extension and Cloudflare serves it that way from the
+  // assets; this is the same rule, so one address works under both runtimes.
+  if (path.length > 1 && !path.includes(".")) {
+    const document = asset(`${path}.html`);
+    if (await document.exists())
+      return new Response(document, { headers: { "content-type": "text/html; charset=utf-8" } });
+  }
   // Only the app's own screens fall back to the shell. Anything else — an icon we do not
   // have, an /api path nothing answers — is a 404 rather than a page that lied about
   // existing, which is a crawler's word for a soft 404.

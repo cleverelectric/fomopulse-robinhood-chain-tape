@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0a0d10" />
+    <title>How the tape is built — reading fills off Robinhood Chain · fomopulse</title>
+    <meta
+      name="description"
+      content="How fomopulse turns Robinhood Chain Transfer logs into a trade tape: matching the cash leg, pricing what has none, the dust rule, how profit and loss is walked, and what a new token has to clear to be a discovery."
+    />
+    <link rel="canonical" href="https://fomopulse.app/about" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icon-180.png" />
+
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="fomopulse" />
+    <meta property="og:title" content="How the tape is built — reading fills off Robinhood Chain" />
+    <meta
+      property="og:description"
+      content="Matching the cash leg, pricing what has none, the dust rule, how profit and loss is walked, and what a new token has to clear to be a discovery."
+    />
+    <meta property="og:url" content="https://fomopulse.app/about" />
+    <meta property="og:image" content="https://fomopulse.app/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="How the tape is built — reading fills off Robinhood Chain" />
+    <meta
+      name="twitter:description"
+      content="Matching the cash leg, pricing what has none, the dust rule, how profit and loss is walked, and what a new token has to clear to be a discovery."
+    />
+    <meta name="twitter:image" content="https://fomopulse.app/og.png" />
+
+    <style>
+      :root { color-scheme: dark }
+      body {
+        margin: 0 auto; max-width: 46rem; padding: 3rem 1.25rem 5rem;
+        background: #0a0d10; color: #b6c0cb;
+        font: 15px/1.7 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+      h1 { color: #e6edf3; font-size: 1.6rem; line-height: 1.3; margin: 0 0 0.5rem; font-weight: 600 }
+      h2 { color: #e6edf3; font-size: 1.05rem; margin: 2.5rem 0 0.5rem; font-weight: 600 }
+      p, li { margin: 0.75rem 0 }
+      a { color: #2fd08a; text-decoration: none }
+      a:hover { text-decoration: underline }
+      code { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: #e6edf3 }
+      .lede { color: #7d8792 }
+      nav { margin: 2rem 0 0; padding: 1rem 0 0; border-top: 1px solid #1b2229 }
+      nav a { margin-right: 1.25rem; white-space: nowrap }
+      footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #1b2229; color: #6b7480; font-size: 13px }
+    </style>
+  </head>
+  <body>
+    <h1>How the tape is built</h1>
+    <p class="lede">
+      fomopulse is a live trade tape: every buy and sell made by the tracked
+      <a href="https://fomo.family">fomo.family</a> wallets on Robinhood Chain, priced about a second after it lands.
+      This page is what the numbers on it mean and where each one comes from, because a figure you cannot check is
+      not worth reading.
+    </p>
+
+    <h2>There is no trade feed, only transfers</h2>
+    <p>
+      Robinhood Chain does not publish a list of trades. What it publishes is ERC-20 <code>Transfer</code> logs — one
+      line saying some quantity of some token moved from one address to another. A swap is several of those inside one
+      transaction, and turning them back into a trade is the whole of the work.
+    </p>
+    <p>
+      fomopulse subscribes to two filters, one for a tracked wallet as sender and one as recipient. When either fires
+      the whole transaction is fetched, its transfers are read out, and the wallet's net flow of each token is worked
+      out. A token that went up paired with cash that went down is a buy; the other way round is a sell.
+    </p>
+
+    <h2>What a fill is priced from, and what the tilde means</h2>
+    <p>
+      Most swaps carry their own price. The cash leg — USDG, or wrapped ether — is in the same transaction as the
+      token leg, so the dollars are arithmetic and not an estimate. Those rows carry an exact figure.
+    </p>
+    <p>
+      Some do not. A router that nets several swaps together, or a trade paid for in something else, leaves a token leg
+      with no cash beside it. Those are priced from the feed's quote for the token at that moment and marked with a
+      <code>~</code>. A fill that nothing could price at all carries a dash rather than a guess, and it is
+      never quietly filled in later with today's price.
+    </p>
+
+    <h2>The dust rule</h2>
+    <p>
+      New tokens buy attention by sending themselves to wallets people watch. A thousand addresses receive a handful of
+      a token nobody bought, and every tape that counts transfers shows a thousand trades that never happened.
+    </p>
+    <p>
+      A fill is kept off the tape on value and on shape together, never on size alone: a small buy is still a buy. What
+      is filtered is an arrival with no cash paid, no history of the wallet trading the token, and the same arrival
+      landing on many tracked wallets at once. If the token is later bought or sold for real, the earlier arrival is
+      pardoned and reappears, because the thing that made it look like a handout has stopped being true. Handouts are
+      counted and shown as a number on the token, never silently dropped.
+    </p>
+
+    <h2>Profit and loss is walked, not reported</h2>
+    <p>
+      Nothing numeric on these screens comes from anybody's API. The <a href="/traders">traders</a> table is walked from
+      this tape's own fills: average cost per wallet and token, a round trip counted in the window it closed in,
+      unrealised marked at the feed's current price. Proceeds from selling something that arrived at no cost are shown
+      apart, because that is not profit on anything.
+    </p>
+    <p>
+      fomo.family is asked for one thing and one thing only: who a trader is — the handle, the avatar, the clan. Every
+      figure beside that name was measured here and can be checked against the chain, transaction by transaction.
+    </p>
+
+    <h2>Bags are positions, not balances</h2>
+    <p>
+      The <a href="/bags">bags</a> screen is what the tracked wallets are still long, worked out from their own fills
+      rather than read off a balance. What a wallet was given, or moved in from elsewhere, is not a position it took.
+      Each row carries how many wallets are in it now against how many were when the window opened, so a bag being
+      accumulated reads differently from one being left.
+    </p>
+
+    <h2>What a new token has to clear to be a discovery</h2>
+    <p>
+      The <a href="/discover">discover</a> screen is pools opened in the last three days that a tracked wallet has
+      bought into. Most young pools are not markets, so several cuts stand in front of the page:
+    </p>
+    <ul>
+      <li>A pool under ten thousand dollars deep is not a market and never appears.</li>
+      <li>
+        A pool turning over more than twenty times its own depth in a day is not showing you the market's volume. That
+        is the shape wash trading leaves behind.
+      </li>
+      <li>
+        A card the price feed has not answered for in an hour is dropped. A pool that rugs is not answered badly, it
+        stops being answered — and the row keeps the depth, the volume and the change the pool had the hour it emptied,
+        which reads as a find.
+      </li>
+      <li>
+        A pool the feed reports ten or more buys and not one sell from is dropped. The buy works for everyone and the
+        sell works for nobody.
+      </li>
+      <li>
+        A token handed to more than five wallets for every real fill is dropped. The page ranks a pool on who is in it,
+        and a launch that sprays the tracked wallets is buying that ranking.
+      </li>
+    </ul>
+    <p>
+      What survives still carries what it costs to know: how long after the pool opened the first tracked wallet
+      bought, what the whole token was worth at that moment against what it is worth now, and how many buys were
+      cancelled by a sell of the same size minutes later.
+    </p>
+
+    <h2>Read-only, and open</h2>
+    <p>
+      fomopulse holds no keys, signs nothing and cannot trade. It never asks for a wallet, a seed phrase, a signature
+      or a payment, and there is nothing on it to connect. It reads a public chain and shows you what it read. The
+      same data is served as JSON at <a href="/api/tape">/api/tape</a>, <a href="/api/traders">/api/traders</a>,
+      <a href="/api/bags">/api/bags</a> and <a href="/api/discover">/api/discover</a>, and every number the pages pace
+      themselves by is at <a href="/api/limits">/api/limits</a>.
+    </p>
+    <p>
+      It is not affiliated with fomo.family or with Robinhood Markets, and nothing here is advice about what to buy.
+      The source is public: read the reconstruction yourself if a row looks wrong.
+    </p>
+
+    <nav>
+      <a href="/">Live tape</a><a href="/traders">Traders</a><a href="/bags">Bags</a><a href="/discover">Discover</a>
+    </nav>
+    <footer>
+      <a href="https://github.com/itsnex1s/fomopulse-robinhood-chain-tape">Source on GitHub</a> — MIT, no keys, no
+      trading.
+    </footer>
+  </body>
+</html>
