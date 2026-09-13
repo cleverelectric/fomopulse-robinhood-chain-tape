@@ -45,3 +45,10 @@ test("a trailing slash is the same page and not a second one", async () => {
 test("a path no screen answers to is served whatever it was, untouched", async () => {
   expect(await served("/nowhere")).toBe(source);
 });
+
+test("the sitemap names every screen and nothing the app does not draw", async () => {
+  const xml = await Bun.file(new URL("../../web/public/sitemap.xml", import.meta.url)).text();
+  const listed = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(([, loc]) => loc!);
+  // The home page keeps its trailing slash and no other address grows one.
+  expect(listed.sort()).toEqual(VIEW_PATHS.map((path) => `${SITE}${path}`).sort());
+});
