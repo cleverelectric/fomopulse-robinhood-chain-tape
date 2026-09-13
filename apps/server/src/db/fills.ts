@@ -238,6 +238,17 @@ const olderCleanStmt = db.query<Row, [number, number, number, number]>(
   `${TAPE_SELECT} WHERE f.ts >= ? AND f.dust = 0 ${OLDER} ${TAPE_ORDER}`,
 );
 
+/**
+ * One wallet's own fills, newest first. A seek to the wallet down fills_wallet_token_ts and
+ * then a sort, because that index orders a wallet's rows by token before time — which is a
+ * sort of one wallet's window rather than a walk of the tape looking for it.
+ * note: past a window holding a few thousand fills for one wallet this wants (wallet, ts) of
+ * its own; a page shows thirty of them, so the ceiling is far above what it is asked for.
+ */
+const walletStmt = db.query<Row, [string, number, number]>(
+  `${TAPE_SELECT} WHERE f.wallet = ? AND f.ts >= ? AND f.dust = 0 ${TAPE_ORDER}`,
+);
+
 /** Where a page of the tape carries on from: the last row the reader was given. */
 export interface TapeCursor {
   ts: number;
@@ -307,6 +318,10 @@ export const tape = (sinceTs: number, limit: number, withDust = true, before?: T
   );
 /** The stored rows of one transaction, so a broadcast carries the same shape as the REST tape. */
 export const tapeOfTx = (tx: string): TapeRow[] => crowd(tapeByTxStmt.all(tx));
+
+/** What one wallet did inside the window, dusting left out: the rows of its own page. */
+export const tapeOfWallet = (wallet: string, sinceTs: number, limit: number): TapeRow[] =>
+  crowd(walletStmt.all(wallet, sinceTs, limit));
 
 export interface OverviewRow {
   fills: number;

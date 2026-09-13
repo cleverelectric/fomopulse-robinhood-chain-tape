@@ -195,6 +195,16 @@ export interface Bag {
 }
 
 /**
+ * `GET /api/trader/:handle`: one tracked trader's own page — their books over the window, and
+ * the fills this tape saw them make. `trader` is null while the books have never been walked.
+ */
+export interface Profile {
+  handle: string;
+  trader: Trader | null;
+  fills: Fill[];
+}
+
+/**
  * `GET /api/discover`: a young pool a tracked wallet has bought into. The feed says how deep
  * and how old it is; everything about who is in it is measured on this tape. Pools too
  * shallow to be a market, and ones whose day's volume dwarfs their own depth, never reach here.

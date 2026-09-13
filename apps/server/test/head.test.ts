@@ -7,8 +7,10 @@
  * that the rewriter and that file still name the same tags.
  */
 import { expect, test } from "bun:test";
+import { traderDocument } from "../src/api/profile.ts";
 import { dress, SOURCE } from "../src/api/shell.ts";
-import { PAGES, SITE, VIEW_PATHS } from "../src/api/views.ts";
+import { sitemap } from "../src/api/sitemap.ts";
+import { HANDLE_LIST, PAGES, SITE, traderOf, traderPath, VIEW_PATHS } from "../src/api/views.ts";
 
 const source = await Bun.file(new URL("../../web/index.html", import.meta.url)).text();
 const served = (path: string, rows?: unknown[]): Promise<string> =>
@@ -46,28 +48,15 @@ test("a path no screen answers to is served whatever it was, untouched", async (
   expect(await served("/nowhere")).toBe(source);
 });
 
-test("the sitemap names every screen, and every address it names is one that answers", async () => {
-  const xml = await Bun.file(new URL("../../web/public/sitemap.xml", import.meta.url)).text();
-  const listed = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(([, loc]) => loc!);
-  // The home page keeps its trailing slash and no other address grows one.
-  for (const path of VIEW_PATHS) expect(listed).toContain(`${SITE}${path}`);
-  // Everything else listed is a document served out of the assets under that name.
-  const documents = listed.filter((loc) => !VIEW_PATHS.some((path) => loc === `${SITE}${path}`));
-  for (const loc of documents) {
-    const name = loc.slice(SITE.length);
-    const file = Bun.file(new URL(`../../web/public${name}.html`, import.meta.url));
-    expect({ loc, exists: await file.exists() }).toEqual({ loc, exists: true });
-  }
-  expect(new Set(listed).size).toBe(listed.length);
-});
-
 test("a screen without JavaScript is the screen, not an empty div", async () => {
   const html = await served("/traders", [
     { rank: 1, handle: "unipcs", fills: 12, tape_volume: 40_500, total: -1_250 },
     { rank: 2, handle: "frankdegods", fills: 3, tape_volume: 900, total: null },
   ]);
   expect(html).toContain("<h1>");
-  expect(html).toContain("<td>unipcs</td>");
+  // Each handle is a link to that trader's page: the only path to them a crawler that does
+  // not run the app has, and the sitemap is the other.
+  expect(html).toContain(`<td><a href="${traderPath("unipcs")}">unipcs</a></td>`);
   expect(html).toContain("<td>$40,500</td>");
   // A loss says so rather than carrying a minus into a cell nothing explains.
   expect(html).toContain("<td>$1,250 loss</td>");
@@ -96,4 +85,58 @@ test("every screen draws its rows from an address the app itself asks for", () =
     expect({ path, has: source_ !== undefined }).toEqual({ path, has: true });
     expect(source_!.startsWith("/api/")).toBe(true);
   }
+});
+
+test("the sitemap names every screen, the documents beside them, and the traders it was given", async () => {
+  const [first, second] = [HANDLE_LIST[0]!, HANDLE_LIST[1]!];
+  const xml = sitemap([first, second]);
+  const listed = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(([, loc]) => loc!);
+  for (const path of VIEW_PATHS) expect(listed).toContain(`${SITE}${path}`);
+  expect(listed).toContain(`${SITE}${traderPath(first)}`);
+  expect(listed).toContain(`${SITE}${traderPath(second)}`);
+  // A trader it was not given is not a page it claims exists.
+  expect(listed).not.toContain(`${SITE}${traderPath(HANDLE_LIST[2]!)}`);
+  expect(new Set(listed).size).toBe(listed.length);
+  // Every address that is not a screen or a trader is a document the assets hold by that name.
+  const known = new Set([...VIEW_PATHS, traderPath(first), traderPath(second)].map((path) => `${SITE}${path}`));
+  for (const loc of listed.filter((l) => !known.has(l))) {
+    const file = Bun.file(new URL(`../../web/public${loc.slice(SITE.length)}.html`, import.meta.url));
+    expect({ loc, exists: await file.exists() }).toEqual({ loc, exists: true });
+  }
+});
+
+test("a trader's page exists for the roster and for nobody else", () => {
+  const handle = HANDLE_LIST[0]!;
+  expect(traderOf(traderPath(handle))).toBe(handle);
+  // However it is spelled in the address, the page is the one the roster names.
+  expect(traderOf(`/trader/${handle.toUpperCase()}`)).toBe(handle);
+  expect(traderOf(`/trader/${handle}/`)).toBe(handle);
+  for (const path of ["/trader/", "/trader/nobody", "/trader/a/b", "/traders", "/trader/%E0%A4%A"])
+    expect({ path, found: traderOf(path) }).toEqual({ path, found: undefined });
+});
+
+test("a trader's page says who it is about, everywhere a page can", () => {
+  const handle = HANDLE_LIST[0]!;
+  const html = traderDocument(
+    {
+      handle,
+      trader: null,
+      fills: [{ ts: 1_700_000_000, side: "buy", usd: 1234.5, symbol: "<b>X", token: "0xabc", price: 2, mcap_at: null }],
+    } as never,
+    "7d",
+  );
+  expect(html).toContain(`<h1>${handle}</h1>`);
+  expect(html).toContain(`<link rel="canonical" href="${SITE}${traderPath(handle)}">`);
+  expect(html).toContain("<td>$1,235</td>");
+  expect(html).toContain("&lt;b&gt;X");
+  expect(html).not.toContain("<b>X");
+  // The books have never been walked for this one, and the page says nothing rather than zero.
+  expect(html).not.toContain("<dl>");
+});
+
+test("a trader with nothing in the window is a page about a quiet trader", () => {
+  const handle = HANDLE_LIST[1]!;
+  const html = traderDocument({ handle, trader: null, fills: [] }, "7d");
+  expect(html).toContain("No fills in this window");
+  expect(html).not.toContain("<table>");
 });

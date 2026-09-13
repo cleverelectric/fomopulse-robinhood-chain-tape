@@ -62,3 +62,7 @@ export const blockUrl = (explorer: string, block: number) => (explorer ? `${expl
 export const tokenUrl = (slug: string, token: string) => `https://dexscreener.com/${slug}/${token}`;
 export const traderUrl = (fill: { handle: string; profile_url?: string | null }) =>
   fill.profile_url ?? `${FOMO}/profile/${fill.handle}`;
+
+/** This tape's own page for a trader: what it saw them do, at an address worth sending somebody.
+ *  Written by the runtime rather than drawn here — see apps/server/src/api/profile.ts. */
+export const traderPageUrl = (handle: string) => `/trader/${encodeURIComponent(handle)}`;

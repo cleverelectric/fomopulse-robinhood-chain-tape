@@ -1,6 +1,6 @@
 /** What the process serves beside the API: a built file, a screen's own address, or a 404. */
 import { expect, test } from "bun:test";
-import { isViewPath, VIEW_PATHS } from "../src/api/views.ts";
+import { HANDLE_LIST, isViewPath, traderPath, VIEW_PATHS } from "../src/api/views.ts";
 import { api } from "./support/api.ts";
 
 test("every screen's address is one the app is served at", () => {
@@ -42,4 +42,22 @@ test("the API still answers first, whatever the fallback would do with the path"
   // out before its own fills landed.
   const res = await api.request("/api/alive");
   expect(res.status).toBe(200);
+});
+
+test("a tracked trader has a page of their own, and a name nobody tracks does not", async () => {
+  const handle = HANDLE_LIST[0]!;
+  const res = await api.request(traderPath(handle));
+  expect(res.status).toBe(200);
+  expect(res.headers.get("content-type")).toContain("text/html");
+  expect(await res.text()).toContain(`<h1>${handle}</h1>`);
+  // A page per guessed name is the shape of a soft 404; there is one per tracked wallet.
+  expect((await api.request("/trader/nobody-at-all")).status).toBe(404);
+});
+
+test("the sitemap is written, not stored, and answers under the name robots.txt gives", async () => {
+  const res = await api.request("/sitemap.xml");
+  expect(res.status).toBe(200);
+  expect(res.headers.get("content-type")).toContain("xml");
+  const xml = await res.text();
+  for (const path of VIEW_PATHS) expect(xml).toContain(`<loc>https://fomopulse.app${path}</loc>`);
 });

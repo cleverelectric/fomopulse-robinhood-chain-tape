@@ -10,6 +10,11 @@ const traders = new Map(wallets.map((w) => [w.address, w]));
 /** A stored row's wallet, for the rows that name one: the handle, or the address prefix. */
 export const handleOf = (wallet: string): string => traders.get(wallet as `0x${string}`)?.handle ?? wallet.slice(0, 10);
 
+const byHandle = new Map(wallets.map((w) => [w.handle.toLowerCase(), w.address]));
+
+/** The other way round, for an address that names a trader rather than a wallet. */
+export const walletOf = (handle: string): string | undefined => byHandle.get(handle.toLowerCase());
+
 /** Under this a tokenised stock is not a line of the tape: a stock settles off fomo's own account
  *  with no cash leg on chain, so nothing in the shape of a $5 fractional buy tells it from a credit,
  *  and either way half a tape of them carries a third of a percent of what it moved. */

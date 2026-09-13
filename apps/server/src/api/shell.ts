@@ -1,5 +1,6 @@
+import { escaped, LINKS, named, table, usd, when } from "./html.ts";
 import type { Bag, Discover, Fill, Trader } from "./types.ts";
-import { pageOf, SITE, trimmed } from "./views.ts";
+import { pageOf, SITE, traderPath, trimmed } from "./views.ts";
 
 /**
  * The app is one file and every screen is served that file, so the head a crawler reads is
@@ -22,37 +23,17 @@ export const SOURCE: Record<string, string> = {
   "/discover": "/api/discover?window=24h&limit=200",
 };
 
+/**
+ * What a trader's own page is written from. A week rather than the app's day: the page is for
+ * somebody arriving at a name they have never seen, and a trader quiet since yesterday is
+ * still a trader. Thirty fills is a page of them and not an archive.
+ */
+export const TRADER_WINDOW = "7d";
+export const TRADER_FILLS = 30;
+
 /** Rows written into the page. Enough to say what the screen is about and no more: the reader
  *  who can run the app gets all of them a moment later, and the one who cannot is reading. */
 const SHOWN = 20;
-
-const escaped = (value: string): string =>
-  value.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c);
-
-const usd = (value: number | null): string =>
-  value === null ? "—" : `$${Math.round(Math.abs(value)).toLocaleString("en-US")}${value < 0 ? " loss" : ""}`;
-
-const when = (ts: number | null): string =>
-  ts === null ? "—" : new Date(ts * 1_000).toISOString().replace("T", " ").slice(0, 16);
-
-const named = (symbol: string | null, token: string): string => symbol ?? `${token.slice(0, 10)}…`;
-
-/** Where else to go, for the reader and the crawler that got this far without the app. The
- *  app draws its own navigation once it mounts and this is gone. */
-const LINKS = `<nav>${[
-  ["/", "Live tape"],
-  ["/traders", "Traders"],
-  ["/bags", "Bags"],
-  ["/discover", "Discover"],
-  ["/about", "How the tape is built"],
-]
-  .map(([href, name]) => `<a href="${href}">${name}</a>`)
-  .join(" ")}</nav>`;
-
-const table = (head: string[], rows: string[][]): string =>
-  `<table><thead><tr>${head.map((h) => `<th>${escaped(h)}</th>`).join("")}</tr></thead><tbody>${rows
-    .map((row) => `<tr>${row.map((cell) => `<td>${escaped(cell)}</td>`).join("")}</tr>`)
-    .join("")}</tbody></table>`;
 
 /** One screen's rows as text. Unknown shapes render nothing rather than guessing at them. */
 function rendered(pathname: string, all: unknown[]): string {
@@ -67,7 +48,8 @@ function rendered(pathname: string, all: unknown[]): string {
       ["#", "trader", "fills", "volume", "profit and loss"],
       (rows as Trader[]).map((t, n) => [
         String(t.rank ?? n + 1),
-        t.handle,
+        // The only path a crawler that does not run the app has to the trader pages.
+        { text: t.handle, href: traderPath(t.handle) },
         String(t.fills),
         usd(t.tape_volume),
         usd(t.total),

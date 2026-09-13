@@ -4,8 +4,10 @@
  * thousand polling readers down to one request per colo per cache window.
  */
 
-import { dress, SOURCE } from "../../server/src/api/shell.ts";
-import { isViewPath, trimmed } from "../../server/src/api/views.ts";
+import { traderDocument } from "../../server/src/api/profile.ts";
+import { dress, SOURCE, TRADER_FILLS, TRADER_WINDOW } from "../../server/src/api/shell.ts";
+import type { Profile } from "../../server/src/api/types.ts";
+import { isViewPath, traderOf, trimmed } from "../../server/src/api/views.ts";
 import { limits } from "../../server/src/limits.ts";
 import { canonical, named, nameless, throttled, tooMany } from "./cache.ts";
 import type { Env } from "./env.ts";
@@ -13,15 +15,15 @@ import type { Env } from "./env.ts";
 export { Tape } from "./tape.ts";
 
 /**
- * How long an answer may be reused at the edge, in seconds, from config/limits.json. Set just
- * under the interval the client polls at, so the object is asked once per colo per window
- * however many readers there are. The object may ask for longer in the answer's own `x-ttl`,
- * which is how a month spending past its budget reaches this cache: see api/budget.ts.
+ * How long an answer may be reused at the edge, in seconds, from config/limits.json, keyed by
+ * the route's own name — the segment after /api/, and not a prefix of the path, or /api/traders
+ * would be answered by whichever of it and /api/trader was written down first. Set just under
+ * the interval the client polls at, so the object is asked once per colo per window however
+ * many readers there are. The object may ask for longer in the answer's own `x-ttl`, which is
+ * how a month spending past its budget reaches this cache: see api/budget.ts.
  */
-const TTL: [prefix: string, seconds: number][] = Object.entries(limits.cache.edge).map(([name, seconds]) => [
-  `/api/${name}`,
-  seconds,
-]);
+const TTL: Record<string, number> = limits.cache.edge;
+const routeOf = (pathname: string): string => pathname.split("/")[2] ?? "";
 
 /**
  * One object, named. The hint pins it to eastern North America, next to the RPC provider
@@ -43,7 +45,7 @@ async function answer(request: Request, env: Env, ctx: ExecutionContext, url: UR
   };
   if (request.method !== "GET") return direct();
 
-  const configured = TTL.find(([prefix]) => url.pathname.startsWith(prefix))?.[1] ?? 0;
+  const configured = TTL[routeOf(url.pathname)] ?? 0;
   if (configured === 0) return direct();
 
   const cache = caches.default;
@@ -90,6 +92,22 @@ async function drawn(request: Request, env: Env, ctx: ExecutionContext, url: URL
   }
 }
 
+/** One tracked trader's own page, written here out of the object's answer for them. A handle
+ *  the roster does not know never gets this far, so there is a page per tracked wallet. */
+async function profile(handle: string, request: Request, env: Env, ctx: ExecutionContext, url: URL): Promise<Response> {
+  const at = new URL(`/api/trader/${encodeURIComponent(handle)}?window=${TRADER_WINDOW}&limit=${TRADER_FILLS}`, url);
+  let got: Profile = { handle, trader: null, fills: [] };
+  try {
+    const response = await answer(new Request(at.toString(), { headers: request.headers }), env, ctx, at);
+    if (response.ok) got = (await response.json()) as Profile;
+  } catch {
+    // A trader whose numbers could not be fetched is still a trader, and still a page.
+  }
+  return new Response(traderDocument(got, TRADER_WINDOW), {
+    headers: { "content-type": "text/html; charset=utf-8" },
+  });
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
@@ -100,7 +118,15 @@ export default {
     // The socket is an object request like any other, and one nothing caches.
     if (url.pathname === "/ws")
       return (await throttled(env.OBJECT_LIMIT, request)) === "over" ? tooMany() : tape(env).fetch(request);
+    // The sitemap is written by the object — it names every trader the tape has seen trade —
+    // and robots.txt asks for it under this name rather than under /api.
+    if (url.pathname === "/sitemap.xml") {
+      const at = new URL("/api/sitemap", url);
+      return answer(new Request(at.toString(), { headers: request.headers }), env, ctx, at);
+    }
     if (!url.pathname.startsWith("/api/")) {
+      const handle = traderOf(url.pathname);
+      if (handle !== undefined) return profile(handle, request, env, ctx, url);
       // The app draws four screens and the assets hold one page, so a screen's own address
       // is answered with that page, wearing that screen's own head. Everything else the
       // assets do not have stays a 404.

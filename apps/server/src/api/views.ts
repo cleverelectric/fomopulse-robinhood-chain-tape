@@ -1,3 +1,5 @@
+import { wallets } from "../config.ts";
+
 /**
  * The addresses the web app draws itself, which both runtimes answer with the app shell.
  * Kept in step with PATH in apps/web/src/url.ts: the web app cannot be imported from here —
@@ -54,3 +56,33 @@ export const PAGES: Record<string, Page> = {
 
 /** The page at an address, if the app draws one there. */
 export const pageOf = (pathname: string): Page | undefined => PAGES[trimmed(pathname)];
+
+/** The roster by the lowercase handle, which is the most an address can promise to carry. */
+const HANDLES = new Map(wallets.map((w) => [w.handle.toLowerCase(), w.handle]));
+
+/** Where a tracked trader's own page lives. Not a screen: the app does not draw one, the
+ *  runtime writes it, so it is a document like /about rather than a fifth view. */
+export const TRADER_PREFIX = "/trader/";
+
+/**
+ * The handle an address names, spelled as the roster spells it. Anyone the tape does not
+ * track is undefined and gets a 404 — a page per guessed name is the shape of a soft 404,
+ * and there are only ever as many trader pages as there are tracked wallets.
+ */
+export function traderOf(pathname: string): string | undefined {
+  const path = trimmed(pathname);
+  if (!path.startsWith(TRADER_PREFIX)) return undefined;
+  const asked = path.slice(TRADER_PREFIX.length);
+  if (asked === "" || asked.includes("/")) return undefined;
+  try {
+    return HANDLES.get(decodeURIComponent(asked).toLowerCase());
+  } catch {
+    return undefined;
+  }
+}
+
+/** The address that page is kept at, whatever case it was asked for. */
+export const traderPath = (handle: string): string => `${TRADER_PREFIX}${encodeURIComponent(handle)}`;
+
+/** Every tracked handle, for the sitemap and for anything else that needs the whole roster. */
+export const HANDLE_LIST: string[] = wallets.map((w) => w.handle);

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { chainConfig, env, wallets } from "../config.ts";
-import { counts, getMeta, MAX_POOL_AGE, overview, positionsCount, tape } from "../db.ts";
+import { counts, getMeta, MAX_POOL_AGE, overview, positionsCount, tape, tapeOfWallet } from "../db.ts";
 import { discoverList } from "../discover.ts";
 import { cursor } from "../ingest/cursor.ts";
 import { latencyMs, latencySummary } from "../ingest/lag.ts";
@@ -10,8 +10,9 @@ import { sessionState } from "../privy.ts";
 import { bagList, leaderboardState, ranking } from "../traders.ts";
 import { since, WINDOW_SECONDS } from "../window.ts";
 import { budget, measure, pressure, spend } from "./budget.ts";
-import { handleOf, onTape, toFill } from "./fills.ts";
-import type { Overview, Status } from "./types.ts";
+import { handleOf, onTape, toFill, walletOf } from "./fills.ts";
+import { sitemap } from "./sitemap.ts";
+import type { Overview, Profile, Status } from "./types.ts";
 
 /**
  * Every open tab polls the same handful of queries, so each answer is computed at most once
@@ -195,6 +196,35 @@ const discoverFor = memo(ttlBy(MARKED, "discover"), (key) => {
 });
 
 /**
+ * One tracked trader's own page: their row out of the ranking every screen already asks for,
+ * and their own fills — a seek to the wallet rather than a read of the tape looking for it.
+ * There is a page per tracked wallet and no more, so the key space is the roster.
+ */
+const traderFor = memo(ttlBy(MARKED, "traders"), (key): Profile | null => {
+  const [window, handle, limitText] = key.split("|");
+  const resolved = window ?? "24h";
+  const wallet = walletOf(handle ?? "");
+  if (wallet === undefined) return null;
+  const limit = Math.min(Number(limitText) || 30, 100);
+  // The ranking is memoised and shared with the traders screen; only the fills are this
+  // page's own, and each row carries the two subqueries every tape row carries.
+  const trader = tradersFor([resolved, "300"].join("|")).find((t) => t.handle === handle) ?? null;
+  spend(limit * 3);
+  const rows = measure("trader:fills", () => tapeOfWallet(wallet, since(resolved), limit));
+  return { handle: handle ?? "", trader, fills: rows.map(toFill).filter(onTape) };
+});
+
+/** Every address a crawler should fetch, traders included where the tape has seen them trade.
+ *  Held for a day: the roster changes with a deploy and a trader's first fill is not urgent. */
+const everyAddress = memo(ms(limits.cache.edge.sitemap ?? 86_400), () =>
+  sitemap(
+    tradersFor(["all", "300"].join("|"))
+      .filter((t) => t.fills > 0)
+      .map((t) => t.handle),
+  ),
+);
+
+/**
  * How long the edge in front of this may reuse an answer: the route's own lifetime from
  * config/limits.json, stretched by whatever the month is on course to spend. The cache is told
  * rather than left to decide, because holding answers longer is the one lever that answers a
@@ -204,7 +234,8 @@ const edgeTtl = (path: string, window: string, cursored: boolean): number | unde
   // A page behind a cursor is a page of the past. It cannot change, so nothing is gained by
   // asking for it again, and it is the half of the tape a reader paging back asks for most.
   if (path === "/api/tape" && cursored) return limits.cache.cursorSeconds;
-  const base = limits.cache.edge[path.slice("/api/".length)];
+  // The route's own name, not the rest of the path: a trader's page is `trader`, not `trader/x`.
+  const base = limits.cache.edge[path.split("/")[2] ?? ""];
   if (base === undefined) return undefined;
   // The readout is the one answer whose cost is the window: it walks every fill in it, twice,
   // and thirty days of that held for the twelve seconds an hour of it is worth would ask for a
@@ -252,6 +283,16 @@ export const api = new Hono()
     c.json(tradersFor([c.req.query("window") ?? "24h", c.req.query("limit") ?? "50"].join("|"))),
   )
   .get("/api/bags", (c) => c.json(bagsFor([c.req.query("window") ?? "all", c.req.query("limit") ?? "60"].join("|"))))
+  // The addresses worth fetching. Served at /sitemap.xml, which is the name robots.txt gives,
+  // and under /api as well because that is the only prefix the edge forwards to the object.
+  .get("/api/sitemap", (c) => c.body(everyAddress(), 200, { "content-type": "application/xml; charset=utf-8" }))
+  .get("/sitemap.xml", (c) => c.body(everyAddress(), 200, { "content-type": "application/xml; charset=utf-8" }))
+  .get("/api/trader/:handle", (c) => {
+    const found = traderFor(
+      [c.req.query("window") ?? "24h", c.req.param("handle"), c.req.query("limit") ?? "30"].join("|"),
+    );
+    return found === null ? c.json({ error: "no such trader" }, 404) : c.json(found);
+  })
   .get("/api/discover", (c) =>
     c.json(discoverFor([c.req.query("window") ?? "24h", c.req.query("limit") ?? "60"].join("|"))),
   )

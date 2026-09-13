@@ -4,9 +4,11 @@
  */
 import { fileURLToPath } from "node:url";
 import { type Context, Hono } from "hono";
+import { traderDocument } from "./profile.ts";
 import { api } from "./routes.ts";
-import { dress, SOURCE } from "./shell.ts";
-import { isViewPath, trimmed } from "./views.ts";
+import { dress, SOURCE, TRADER_FILLS, TRADER_WINDOW } from "./shell.ts";
+import type { Profile } from "./types.ts";
+import { isViewPath, traderOf, trimmed } from "./views.ts";
 
 /** `fileURLToPath`, not `.pathname`: on Windows the latter is `/D:/…`, which no file API opens. */
 const dist = fileURLToPath(new URL("../../../web/dist/", import.meta.url));
@@ -25,6 +27,17 @@ async function drawn(path: string): Promise<unknown[] | undefined> {
   }
 }
 
+/** A tracked trader's own page. The handle is checked against the roster before anything is
+ *  read, so there is a page per tracked wallet and not one per name somebody guessed. */
+async function trader(handle: string): Promise<Response> {
+  const asked = `/api/trader/${encodeURIComponent(handle)}?window=${TRADER_WINDOW}&limit=${TRADER_FILLS}`;
+  const response = await api.request(asked);
+  const profile = response.ok ? ((await response.json()) as Profile) : { handle, trader: null, fills: [] };
+  return new Response(traderDocument(profile, TRADER_WINDOW), {
+    headers: { "content-type": "text/html; charset=utf-8" },
+  });
+}
+
 async function spa(c: Context): Promise<Response> {
   // Parsed, so `..` is resolved away before it reaches a file API; what is left encoded
   // stays encoded, and no directory is named twice.
@@ -38,6 +51,8 @@ async function spa(c: Context): Promise<Response> {
     if (await document.exists())
       return new Response(document, { headers: { "content-type": "text/html; charset=utf-8" } });
   }
+  const handle = traderOf(path);
+  if (handle !== undefined) return trader(handle);
   // Only the app's own screens fall back to the shell. Anything else — an icon we do not
   // have, an /api path nothing answers — is a 404 rather than a page that lied about
   // existing, which is a crawler's word for a soft 404.

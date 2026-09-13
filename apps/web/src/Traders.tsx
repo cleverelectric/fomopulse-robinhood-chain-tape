@@ -1,7 +1,7 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Avatar } from "./Avatar.tsx";
-import { getTraders, traderUrl } from "./api.ts";
+import { getTraders, traderPageUrl, traderUrl } from "./api.ts";
 import { ago, compact, signed, usd, usdCompact } from "./format.ts";
 import { useUi } from "./store.ts";
 import { cell, head, num, SortHeader, sorted, tone, useSort, wide } from "./table.tsx";
@@ -146,7 +146,11 @@ export function Traders() {
             const win = winRate(trader);
             return (
               <tr key={trader.address} className="hover:bg-hover">
-                <td className={`${cell} text-right font-mono text-dimmer`}>{trader.rank ? `#${trader.rank}` : ""}</td>
+                <td className={`${cell} text-right font-mono text-dimmer`}>
+                  <a className="hover:text-accent" href={traderPageUrl(trader.handle)} title="this trader's own page">
+                    {trader.rank ? `#${trader.rank}` : "·"}
+                  </a>
+                </td>
                 <td className={cell}>
                   <a
                     className="flex items-center gap-2 hover:text-accent"
