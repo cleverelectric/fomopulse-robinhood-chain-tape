@@ -30,11 +30,7 @@ export function Discover() {
 
   const all = data ?? [];
   const duplicateSymbols = new Set(
-    [...new Map(
-      all
-        .filter((row) => row.symbol)
-        .map((row) => [row.symbol!.toLowerCase(), 0]),
-    ).keys()].filter(
+    [...new Map(all.filter((row) => row.symbol).map((row) => [row.symbol!.toLowerCase(), 0])).keys()].filter(
       (symbol) => all.filter((row) => row.symbol?.toLowerCase() === symbol).length > 1,
     ),
   );
@@ -169,7 +165,8 @@ export function Discover() {
               behind "since" are the price feed's · a pool under $10k, or one whose day's volume is more than twenty
               times its own depth, never reaches this page · over this tape's first days a token only one tracked wallet
               bought was down three times in four, which is what the buyer cut is for · none of this is contract
-              analysis: it says who bought, not that a token is safe · alpha is an unvalidated heuristic, not a return forecast
+              analysis: it says who bought, not that a token is safe · alpha is an unvalidated heuristic, not a return
+              forecast
             </td>
           </tr>
         </tfoot>
