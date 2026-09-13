@@ -7,7 +7,7 @@
  * that the rewriter and that file still name the same tags.
  */
 import { expect, test } from "bun:test";
-import { traderDocument } from "../src/api/profile.ts";
+import { later, traderDocument } from "../src/api/profile.ts";
 import { dress, SOURCE } from "../src/api/shell.ts";
 import { sitemap } from "../src/api/sitemap.ts";
 import { HANDLE_LIST, PAGES, SITE, traderOf, traderPath, VIEW_PATHS } from "../src/api/views.ts";
@@ -139,4 +139,20 @@ test("a trader with nothing in the window is a page about a quiet trader", () =>
   const html = traderDocument({ handle, trader: null, fills: [] }, "7d");
   expect(html).toContain("No fills in this window");
   expect(html).not.toContain("<table>");
+});
+
+test("a trader whose figures could not be read is a page to come back for, not an empty one", async () => {
+  // 287 of these and a crawler walks them faster than one address may reach the object. A 200
+  // saying this trader has never traded is what a search engine would keep about a real person.
+  for (const [got, want] of [
+    [429, 429],
+    [500, 503],
+    [503, 503],
+    [404, 404],
+  ] as const) {
+    const res = later(got);
+    expect({ got, status: res.status }).toEqual({ got, status: want });
+    expect(res.headers.get("retry-after")).toBe("60");
+    expect(await res.text()).not.toContain("<h1>");
+  }
 });

@@ -17,6 +17,18 @@ export const traderPage = (handle: string): { title: string; description: string
     `size, price, token and transaction, with realised and open profit walked from those fills.`,
 });
 
+/**
+ * A trader's page is the figures on it. When the answer behind it could not be got — the
+ * address has had its minute of the object, or the read failed — the page to serve is one
+ * saying come back, never a 200 saying this trader has never traded: a crawler keeps what
+ * it was handed, and what it was handed would be a lie about somebody with a name.
+ */
+export const later = (status: number): Response =>
+  new Response("could not read this trader just now", {
+    status: status === 404 || status === 429 ? status : 503,
+    headers: { "content-type": "text/plain; charset=utf-8", "retry-after": "60" },
+  });
+
 const rows = (profile: Profile): string =>
   table(
     ["time (UTC)", "side", "size", "token", "price", "market cap then"],

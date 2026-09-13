@@ -4,7 +4,7 @@
  * thousand polling readers down to one request per colo per cache window.
  */
 
-import { traderDocument } from "../../server/src/api/profile.ts";
+import { later, traderDocument } from "../../server/src/api/profile.ts";
 import { dress, SOURCE, TRADER_FILLS, TRADER_WINDOW } from "../../server/src/api/shell.ts";
 import type { Profile } from "../../server/src/api/types.ts";
 import { isViewPath, traderOf, trimmed } from "../../server/src/api/views.ts";
@@ -93,17 +93,17 @@ async function drawn(request: Request, env: Env, ctx: ExecutionContext, url: URL
 }
 
 /** One tracked trader's own page, written here out of the object's answer for them. A handle
- *  the roster does not know never gets this far, so there is a page per tracked wallet. */
+ *  the roster does not know never gets this far, so there is a page per tracked wallet.
+ *  There are 287 of these and a crawler goes through them faster than one address may reach
+ *  the object, so the refused one has to be refused rather than written empty: see `later`. */
 async function profile(handle: string, request: Request, env: Env, ctx: ExecutionContext, url: URL): Promise<Response> {
   const at = new URL(`/api/trader/${encodeURIComponent(handle)}?window=${TRADER_WINDOW}&limit=${TRADER_FILLS}`, url);
-  let got: Profile = { handle, trader: null, fills: [] };
-  try {
-    const response = await answer(new Request(at.toString(), { headers: request.headers }), env, ctx, at);
-    if (response.ok) got = (await response.json()) as Profile;
-  } catch {
-    // A trader whose numbers could not be fetched is still a trader, and still a page.
-  }
-  return new Response(traderDocument(got, TRADER_WINDOW), {
+  const asked = await answer(new Request(at.toString(), { headers: request.headers }), env, ctx, at).catch(
+    () => undefined,
+  );
+  if (asked === undefined) return later(503);
+  if (!asked.ok) return later(asked.status);
+  return new Response(traderDocument((await asked.json()) as Profile, TRADER_WINDOW), {
     headers: { "content-type": "text/html; charset=utf-8" },
   });
 }

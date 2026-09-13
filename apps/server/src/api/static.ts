@@ -4,7 +4,7 @@
  */
 import { fileURLToPath } from "node:url";
 import { type Context, Hono } from "hono";
-import { traderDocument } from "./profile.ts";
+import { later, traderDocument } from "./profile.ts";
 import { api } from "./routes.ts";
 import { dress, SOURCE, TRADER_FILLS, TRADER_WINDOW } from "./shell.ts";
 import type { Profile } from "./types.ts";
@@ -32,7 +32,8 @@ async function drawn(path: string): Promise<unknown[] | undefined> {
 async function trader(handle: string): Promise<Response> {
   const asked = `/api/trader/${encodeURIComponent(handle)}?window=${TRADER_WINDOW}&limit=${TRADER_FILLS}`;
   const response = await api.request(asked);
-  const profile = response.ok ? ((await response.json()) as Profile) : { handle, trader: null, fills: [] };
+  if (!response.ok) return later(response.status);
+  const profile = (await response.json()) as Profile;
   return new Response(traderDocument(profile, TRADER_WINDOW), {
     headers: { "content-type": "text/html; charset=utf-8" },
   });
