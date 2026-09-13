@@ -28,10 +28,10 @@ test("the object's runtime is asked for every screen the assets cannot answer", 
   const config = await Bun.file(new URL("../../worker/wrangler.jsonc", import.meta.url)).text();
   const first = config.match(/"run_worker_first"\s*:\s*\[([^\]]*)\]/)?.[1] ?? "";
   for (const path of VIEW_PATHS) {
-    // The home page is the one the assets already hold.
-    if (path === "/") continue;
     // A pattern is matched exactly, so the trailing slash isViewPath forgives is listed too.
-    for (const form of [path, `${path}/`])
+    // The home page is the one the assets hold under its own name, and it is listed all the
+    // same: served straight off them it would never reach the Worker, and never be dressed.
+    for (const form of path === "/" ? ["/"] : [path, `${path}/`])
       expect({ form, listed: first.includes(`"${form}"`) }).toEqual({ form, listed: true });
   }
 });

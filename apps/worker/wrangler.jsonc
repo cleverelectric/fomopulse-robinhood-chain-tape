@@ -20,7 +20,7 @@
     // apps/server/src/api/views.ts, where the reasoning lives and which a test holds this to.
     // Both spellings of each: a pattern is matched exactly, and a trailing slash is the same
     // address to everything else that reads one.
-    "run_worker_first": ["/api/*", "/ws", "/traders", "/traders/", "/bags", "/bags/", "/discover", "/discover/"]
+    "run_worker_first": ["/api/*", "/ws", "/", "/traders", "/traders/", "/bags", "/bags/", "/discover", "/discover/"]
   },
 
   // The site itself, and the one line in this repository that names a domain: put your own
