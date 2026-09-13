@@ -72,10 +72,14 @@ serving the built SPA, forwarding `/ws`, and answering `/api/*` out of the colo 
 worth sending somebody are the query: `?window=` and `?q=`. `apps/web/src/url.ts` is the whole
 vocabulary and `useUrl.ts` keeps it in step with the store; the address wins on arrival and on back
 and forward, and storage only fills in what it does not say. Both runtimes answer a screen's own
-path with the app shell and everything else with a 404, from the one list in `api/views.ts`.
+path with the app shell — wearing that screen's own title, sentence, card and canonical, and carrying
+its first rows for a reader who cannot run the app — and everything else with a 404, from the one list
+in `api/views.ts`. Beside the screens are pages the app does not draw at all: `/about`, which the
+assets hold, and `/trader/<handle>` for every wallet on the roster, which the runtime writes.
+`/sitemap.xml` names the ones worth fetching and is written too, so nothing drifts.
 
-**API.** `/api/tape`, `/api/status`, `/api/overview`, `/api/traders`, `/api/bags`, `/api/discover`, `/api/limits`,
-`/api/alive`,
+**API.** `/api/tape`, `/api/status`, `/api/overview`, `/api/traders`, `/api/bags`, `/api/discover`,
+`/api/trader/<handle>`, `/api/sitemap`, `/api/limits`, `/api/alive`,
 plus `/ws` for the live push. All take `window` and most take `limit`; the tape also takes
 `stocks`, `dust` and a `before`/`beforeId` cursor. `api/types.ts` is the single definition of every
 response, re-exported type-only by the web app, so a renamed field fails the typecheck on both sides.
@@ -194,7 +198,8 @@ exports. A module with no exports listed is an entry point that runs on import.
     25 receipts.ts      saveReceipt getReceipt allReceipts transfersOf dateReceipt saveToken
                         saveKind loadDecimals loadKinds namelessTokens receiptCounts StoredReceipt
                         Receipts, transfers, token decimals and names, address kinds.
-    26 fills.ts         insertFills tape tapeOfTx tapeStats overview counts deleteFill stampSupply
+    26 fills.ts         insertFills tape tapeOfTx tapeOfWallet tapeStats overview counts deleteFill
+                        stampSupply
                         TapeRow TapeCursor OverviewRow
                         The tape table: inserts, the dust pardon, the tape and overview reads.
     26b positions.ts     rebuildPositions refreshPositions refreshHeld positionsReady positionsCount
@@ -239,12 +244,14 @@ exports. A module with no exports listed is an entry point that runs on import.
 
 ### apps/server/src/api
 
-    36 types.ts         Fill Trader Bag Discover Status Overview Window Side Priced
+    36 types.ts         Fill Trader Bag Discover Profile Status Overview Window Side Priced
                         The entire wire contract. No imports, by design.
-    36b views.ts        VIEW_PATHS isViewPath
-                        The addresses the app draws itself, which both runtimes answer with the
-                        shell. Kept in step with url.ts on the web side and with the Worker's
-                        run_worker_first, which a test holds it to.
+    36b views.ts        VIEW_PATHS isViewPath trimmed SITE PAGES pageOf Page HANDLE_LIST
+                        TRADER_PREFIX traderOf traderPath
+                        Every address the site answers to and what the page at it calls itself.
+                        The screens are kept in step with url.ts on the web side and with the
+                        Worker's run_worker_first, which a test holds them to; a trader's page
+                        exists for a handle on the roster and for nobody else.
     37 fills.ts         toFill handleOf onTape STOCK_MIN_USD
                         A stored tape row becomes the wire Fill; wallet to handle. `onTape` is
                         the size a tokenised stock has to clear to be a line, read by the page
@@ -258,13 +265,33 @@ exports. A module with no exports listed is an entry point that runs on import.
                         piece of work and keeps what it walked, which is how the cost of a page
                         or a job is known rather than argued about.
     38 routes.ts        api COUNTED MARKED ttlBy
-                        The Hono app: the eight GET routes, the in-process memo in front of them,
-                        and the `x-ttl` every answer carries for the edge. All the lifetimes come
-                        from config/limits.json.
+                        The Hono app: the GET routes, the in-process memo in front of them, and
+                        the `x-ttl` every answer carries for the edge. All the lifetimes come
+                        from config/limits.json, keyed by the route's own name — the segment
+                        after /api/, never a prefix of the path, or /api/traders is answered by
+                        whichever of it and /api/trader was written down first.
+    38b html.ts         escaped usd count when named table LINKS STYLE Cell
+                        The little of HTML the runtime writes itself. Nothing reaches a page
+                        from here unescaped.
+    38c shell.ts        dress SOURCE TRADER_WINDOW TRADER_FILLS
+                        One file is the whole app, so each screen's own title, sentence, card
+                        and canonical are written into the copy of it that address is served,
+                        along with the screen's first twenty rows — out of the same answer the
+                        page's own polling asks for, so the edge already holds it. Without this
+                        every screen is the home page four times over and says so in its
+                        canonical. Both runtimes call it.
+    38d profile.ts      traderDocument traderPage
+                        A tracked trader's own page, written rather than drawn: their books over
+                        the week and their last thirty fills. Not a fifth screen — the point is
+                        one address per tracked wallet, which a live tape cannot be.
+    38e sitemap.ts      sitemap
+                        The addresses worth fetching: the screens, the documents, and every
+                        trader this tape has seen trade. Written, so nothing drifts.
     39 ws.ts            websocket broadcast
                         Bun's pub/sub socket handlers.
     40 static.ts        site
-                        Bun-only static and SPA serving in front of the API.
+                        Bun-only static and SPA serving in front of the API: a built file, a
+                        document under its own name, a trader's page, or a dressed shell.
 
 ### apps/worker/src — the Cloudflare runtime
 
