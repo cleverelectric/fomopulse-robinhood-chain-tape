@@ -39,9 +39,10 @@ export const CUTS: Cuts = { minBuyers: 2, hideWash: true, rankedOnly: false };
 export const keep = (row: Discover, cuts: Cuts): boolean =>
   row.buyers >= cuts.minBuyers && (!cuts.hideWash || row.wash === 0) && (!cuts.rankedOnly || row.best_rank !== null);
 
-export type SortKey = "heat" | "age" | "flow" | "growth" | "buyers" | "holders" | "liquidity" | "last";
+export type SortKey = "alpha" | "heat" | "age" | "flow" | "growth" | "buyers" | "holders" | "liquidity" | "last";
 
 export const BY: Record<SortKey, (row: Discover) => number> = {
+  alpha: (row) => row.alpha.score,
   // The page's own order: who came in just now, then how many have come in at all.
   heat: (row) => row.buyers_recent * 1_000 + Math.min(999, row.buyers),
   // Newest first, so the column sorts the way every other one does — largest at the top.
