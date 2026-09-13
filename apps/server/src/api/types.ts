@@ -204,12 +204,31 @@ export interface Profile {
   fills: Fill[];
 }
 
+/** An explainable, explicitly unvalidated first-pass score attached to each Discover row. */
+export interface AlphaSignal {
+  version: "heuristic-v0";
+  score: number;
+  breakdown: {
+    crowd: number;
+    quality: number;
+    flow: number;
+    freshness: number;
+    liquidity: number;
+    retention: number;
+    early: number;
+    penalties: number;
+  };
+  reasons: string[];
+}
+
 /**
  * `GET /api/discover`: a young pool a tracked wallet has bought into. The feed says how deep
  * and how old it is; everything about who is in it is measured on this tape. Pools too
  * shallow to be a market, and ones whose day's volume dwarfs their own depth, never reach here.
  */
 export interface Discover {
+  /** Heuristic evidence score. It is not a backtested return prediction. */
+  alpha: AlphaSignal;
   token: string;
   symbol: string | null;
   name: string | null;
