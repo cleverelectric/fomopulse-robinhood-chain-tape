@@ -3,6 +3,21 @@ import { BY, CUTS, churn, growth, growthLabel, keep, name, net } from "./discove
 import type { Discover } from "./types.ts";
 
 const row = (over: Partial<Discover>): Discover => ({
+  alpha: {
+    version: "heuristic-v0",
+    score: 50,
+    breakdown: {
+      crowd: 10,
+      quality: 10,
+      flow: 10,
+      freshness: 5,
+      liquidity: 5,
+      retention: 5,
+      early: 5,
+      penalties: 0,
+    },
+    reasons: [],
+  },
   token: "0xd15c000000000000000000000000000000000001",
   symbol: "NEWCO",
   name: "New Company",
@@ -67,7 +82,10 @@ test("the cuts the reader keeps: a lone buyer, a wash, and a token no ranked wal
   expect(keep(row({ best_rank: null }), { ...CUTS, rankedOnly: true })).toBe(false);
 });
 
-test("heat puts who came in just now over who has ever been in", () => {
+test("alpha and heat sort stronger signals first", () => {
+  expect(BY.alpha(row({ alpha: { ...row({}).alpha, score: 80 } }))).toBeGreaterThan(
+    BY.alpha(row({ alpha: { ...row({}).alpha, score: 40 } })),
+  );
   const busy = row({ buyers_recent: 5, buyers: 6 });
   const crowded = row({ buyers_recent: 1, buyers: 40 });
   expect(BY.heat(busy)).toBeGreaterThan(BY.heat(crowded));
