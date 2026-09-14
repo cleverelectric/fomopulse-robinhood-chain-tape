@@ -130,6 +130,36 @@ export const SCHEMA = `
     tape_volume REAL NOT NULL DEFAULT 0,
     first_ts INTEGER, last_ts INTEGER, computed_at INTEGER NOT NULL
   );
+  /**
+   * Immutable Alpha observations. A row is the first time a token crossed one score threshold
+   * for one score version; the JSON evidence is exactly what was knowable at that moment.
+   */
+  CREATE TABLE IF NOT EXISTS signals (
+    id INTEGER PRIMARY KEY,
+    token TEXT NOT NULL,
+    pair_address TEXT,
+    version TEXT NOT NULL,
+    threshold INTEGER NOT NULL,
+    observed_at INTEGER NOT NULL,
+    score INTEGER NOT NULL,
+    price REAL,
+    quoted_at INTEGER,
+    liquidity REAL,
+    market_cap REAL,
+    evidence TEXT NOT NULL,
+    UNIQUE (token, version, threshold)
+  );
+  CREATE INDEX IF NOT EXISTS signals_observed ON signals (observed_at);
+  /** Forward marks are written once, never revised, so a later quote cannot rewrite history. */
+  CREATE TABLE IF NOT EXISTS signal_marks (
+    signal_id INTEGER NOT NULL,
+    horizon INTEGER NOT NULL,
+    marked_at INTEGER NOT NULL,
+    price REAL,
+    quoted_at INTEGER,
+    PRIMARY KEY (signal_id, horizon),
+    FOREIGN KEY (signal_id) REFERENCES signals(id)
+  ) WITHOUT ROWID;
   /** Small named values that survive a restart: the resume cursor, the feed's source. */
   CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   /**
