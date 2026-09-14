@@ -66,7 +66,7 @@ export function startSignals(): ReturnType<typeof setInterval> {
       const { inserted, marked } = captureSignals(Math.floor(Date.now() / 1000));
       if (inserted > 0 || marked > 0) log.info(`signals: ${inserted} new, ${marked} forward marks`);
     } catch (error) {
-      log.warn("signals", error);
+      log.error("signals", error);
     }
   };
   tick();
