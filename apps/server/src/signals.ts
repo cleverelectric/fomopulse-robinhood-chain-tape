@@ -1,4 +1,4 @@
-import { MAX_POOL_AGE, dueSignals, markSignal, saveSignal } from "./db.ts";
+import { dueSignals, MAX_POOL_AGE, markSignal, saveSignal } from "./db.ts";
 import { discoverList } from "./discover.ts";
 import { log } from "./log.ts";
 
