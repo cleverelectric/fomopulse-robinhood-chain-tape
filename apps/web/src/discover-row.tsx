@@ -17,7 +17,17 @@ function Delta({ now, then }: { now: number; then: number | null }) {
   );
 }
 
-export function DiscoverRow({ row, now, network }: { row: Discover; now: number; network: number }) {
+export function DiscoverRow({
+  row,
+  now,
+  network,
+  duplicateSymbol,
+}: {
+  row: Discover;
+  now: number;
+  network: number;
+  duplicateSymbol: boolean;
+}) {
   const set = useUi((state) => state.set);
   const url = bagUrl({ network, token: row.token, pair_address: row.pair_address });
   const fomo = fomoTokenUrl({ network, token: row.token });
@@ -37,6 +47,14 @@ export function DiscoverRow({ row, now, network }: { row: Discover; now: number;
             </a>
           ) : (
             name(row)
+          )}
+          {duplicateSymbol && (
+            <span
+              className="font-mono text-[9px] text-down"
+              title={`another contract on this page also uses ${row.symbol}; verify the address before trading`}
+            >
+              {row.token.slice(0, 6)}…{row.token.slice(-4)}
+            </span>
           )}
           {row.dusted > 0 && (
             <span className="text-[9px] text-dimmer" title={`${row.dusted} fills of it were sprayed, not bought`}>
@@ -64,6 +82,12 @@ export function DiscoverRow({ row, now, network }: { row: Discover; now: number;
             </a>
           )}
         </span>
+      </td>
+      <td
+        className={`${num} ${row.alpha.score >= 75 ? "text-up" : row.alpha.score < 40 ? "text-down" : "text-dim"}`}
+        title={`unvalidated ${row.alpha.version} score · ${row.alpha.reasons.join(" · ")}`}
+      >
+        {row.alpha.score}
       </td>
       <td className={`${num} text-dimmer`}>
         {row.pair_created_at === null ? "" : span(now - row.pair_created_at / 1000)}

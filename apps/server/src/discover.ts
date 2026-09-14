@@ -1,3 +1,4 @@
+import { scoreAlpha } from "./alpha.ts";
 import { measure } from "./api/budget.ts";
 import type { Discover } from "./api/types.ts";
 import { chainConfig, wallets } from "./config.ts";
@@ -28,15 +29,35 @@ export function discoverList(recentTs: number, limit: number): Discover[] {
     const buyers = bought.get(row.token) ?? [];
     const ranks = buyers.map((buyer) => bookOf(buyer.wallet).rank).filter((rank): rank is number => rank !== null);
     const firstBuyer = row.first_buyer ? walletOf.get(row.first_buyer as `0x${string}`) : undefined;
+    const firstLag =
+      row.first_buy_ts === null || row.pair_created_at === null
+        ? null
+        : Math.max(0, row.first_buy_ts - Math.floor(row.pair_created_at / 1000));
+    const alpha = scoreAlpha({
+      buyers: row.buyers,
+      buyersRecent: row.buyers_recent,
+      sellers: row.sellers,
+      holders: row.holders,
+      rankedBuyers: ranks,
+      boughtUsd: row.bought_usd,
+      soldUsd: row.sold_usd,
+      liquidity: row.liquidity,
+      volume24: row.volume24,
+      pairCreatedAt: row.pair_created_at,
+      firstLag,
+      mcapAt: row.mcap_at,
+      marketCap: row.market_cap,
+      dusted: row.dusted,
+      wash: row.wash,
+      now,
+    });
     return {
       ...row,
+      alpha,
       is_stock: 0,
       first_buyer: firstBuyer?.handle ?? row.first_buyer,
       // How long the pool ran before the first tracked wallet found it.
-      first_lag:
-        row.first_buy_ts === null || row.pair_created_at === null
-          ? null
-          : Math.max(0, row.first_buy_ts - Math.floor(row.pair_created_at / 1000)),
+      first_lag: firstLag,
       best_rank: ranks.length === 0 ? null : Math.min(...ranks),
       buyers_list: buyers.slice(0, SHOWN).map((buyer) => {
         const wallet = walletOf.get(buyer.wallet as `0x${string}`);
