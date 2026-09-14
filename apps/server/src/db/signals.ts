@@ -63,10 +63,7 @@ const due = db.query<
     ORDER BY s.observed_at, h.value`,
 );
 
-const mark = db.query<
-  null,
-  [number, number, number, number | null, number | null]
->(
+const mark = db.query<null, [number, number, number, number | null, number | null]>(
   `INSERT OR IGNORE INTO signal_marks (signal_id, horizon, marked_at, price, quoted_at)
    VALUES (?, ?, ?, ?, ?)`,
 );
