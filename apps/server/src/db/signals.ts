@@ -58,6 +58,7 @@ const due = db.query<
      LEFT JOIN prices p ON p.token = s.token
     WHERE m.signal_id IS NULL
       AND s.observed_at + h.value <= ?1
+      AND p.updated_at >= s.observed_at + h.value
       AND (?2 <= 0 OR s.observed_at >= ?2)
     ORDER BY s.observed_at, h.value`,
 );
