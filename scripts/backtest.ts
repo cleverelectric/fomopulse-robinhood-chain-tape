@@ -21,6 +21,15 @@ console.log("threshold\thorizon\tn\tmedian\tmean\twin%\tp25\tp75");
 for (const row of stats) {
   const pct = (value: number) => `${(value * 100).toFixed(1)}%`;
   console.log(
-    [row.threshold, row.horizon, row.count, pct(row.median), pct(row.mean), pct(row.winRate), pct(row.p25), pct(row.p75)].join("\t"),
+    [
+      row.threshold,
+      row.horizon,
+      row.count,
+      pct(row.median),
+      pct(row.mean),
+      pct(row.winRate),
+      pct(row.p25),
+      pct(row.p75),
+    ].join("\t"),
   );
 }
