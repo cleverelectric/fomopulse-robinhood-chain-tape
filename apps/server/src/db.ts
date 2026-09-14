@@ -9,5 +9,6 @@ export * from "./db/positions.ts";
 export * from "./db/prices.ts";
 export * from "./db/prune.ts";
 export * from "./db/receipts.ts";
+export * from "./db/signals.ts";
 export * from "./db/stats.ts";
 export * from "./db/traders.ts";
