@@ -19,6 +19,7 @@ import { type Emit, follow, poll } from "./live.ts";
 import { log } from "./log.ts";
 import { startBooks } from "./pnl.ts";
 import { startBagQuotes } from "./prices/bags.ts";
+import { startSignals } from "./signals.ts";
 import { startPrices } from "./prices/feed.ts";
 import { startTraders } from "./traders.ts";
 
@@ -99,6 +100,8 @@ async function main(): Promise<void> {
   startPrune();
   // What this tape made of the traders, walked from its own fills.
   startBooks();
+  // Freeze each alpha threshold crossing and its later forward marks independently of page traffic.
+  startSignals();
   // Only the card — handle, avatar, clan — comes from fomo; every number is our own.
   startTraders();
 
