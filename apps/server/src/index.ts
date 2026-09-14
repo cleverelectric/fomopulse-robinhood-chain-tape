@@ -19,8 +19,8 @@ import { type Emit, follow, poll } from "./live.ts";
 import { log } from "./log.ts";
 import { startBooks } from "./pnl.ts";
 import { startBagQuotes } from "./prices/bags.ts";
-import { startSignals } from "./signals.ts";
 import { startPrices } from "./prices/feed.ts";
+import { startSignals } from "./signals.ts";
 import { startTraders } from "./traders.ts";
 
 const args = process.argv.slice(2);
