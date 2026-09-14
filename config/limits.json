@@ -13,6 +13,7 @@
     "sweepSeconds": 120,
     "quoteSeconds": 15,
     "bagQuoteSeconds": 180,
+    "signalsSeconds": 120,
     "tradersSeconds": 600,
     "tradersColdSeconds": 60,
     "tradersRefusedSeconds": 21600,
