@@ -43,11 +43,7 @@ test("a forward mark waits for a quote at or after the horizon and is written on
 
   expect(dueSignals(1_800_000_120).filter((row) => row.id === signal)).toHaveLength(0);
 
-  db.query("UPDATE prices SET updated_at = ?, price_usd = ? WHERE token = ?").run(
-    1_800_000_061,
-    1.3,
-    markedToken,
-  );
+  db.query("UPDATE prices SET updated_at = ?, price_usd = ? WHERE token = ?").run(1_800_000_061, 1.3, markedToken);
   const due = dueSignals(1_800_000_120).filter((row) => row.id === signal && row.horizon === 60);
   expect(due).toHaveLength(1);
   expect(due[0]!.price).toBe(1.3);
