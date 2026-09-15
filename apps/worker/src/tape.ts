@@ -13,6 +13,7 @@ import { bytesUsed, rowsRead, use } from "./sqlite.ts";
  */
 const TICK_MS = ms(limits.pace.tickSeconds);
 const SWEEP_MS = ms(limits.pace.sweepSeconds);
+const SIGNALS_MS = ms(limits.pace.signalsSeconds);
 const TRADERS_MS = ms(limits.pace.tradersSeconds);
 const TRADERS_COLD_MS = ms(limits.pace.tradersColdSeconds);
 /** The floor of the books walk, rather than its interval: the pass is spaced off its own cost
@@ -328,6 +329,9 @@ export class Tape extends DurableObject<Env> {
     // above have just written.
     if (Date.now() - now < BUDGET_MS && (await this.due("books", app.booksInterval(BOOKS_MS, BOOKS_MAX_MS), now)))
       await this.within("books", until, () => app.books());
+    // The research recorder is independent of readers: a quiet site still freezes the same signal history.
+    if (Date.now() - now < BUDGET_MS && (await this.due("signals", SIGNALS_MS, now)))
+      await this.within("signals", until, () => app.signals());
     // Last, and only with budget to spare: nothing waits on it, and the storage it frees is
     // measured in days rather than in the seconds a pass has.
     if (Date.now() - now < BUDGET_MS && (await this.due("prune", PRUNE_MS, now)))

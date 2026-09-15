@@ -20,6 +20,7 @@ import { log } from "./log.ts";
 import { startBooks } from "./pnl.ts";
 import { startBagQuotes } from "./prices/bags.ts";
 import { startPrices } from "./prices/feed.ts";
+import { startSignals } from "./signals.ts";
 import { startTraders } from "./traders.ts";
 
 const args = process.argv.slice(2);
@@ -99,6 +100,8 @@ async function main(): Promise<void> {
   startPrune();
   // What this tape made of the traders, walked from its own fills.
   startBooks();
+  // Freeze each alpha threshold crossing and its later forward marks independently of page traffic.
+  startSignals();
   // Only the card — handle, avatar, clan — comes from fomo; every number is our own.
   startTraders();
 

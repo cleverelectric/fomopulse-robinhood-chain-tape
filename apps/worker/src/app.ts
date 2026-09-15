@@ -26,6 +26,7 @@ import { log } from "../../server/src/log.ts";
 import { booksInterval, rebuildStats } from "../../server/src/pnl.ts";
 import { refreshPrices } from "../../server/src/prices/feed.ts";
 import { sessionState } from "../../server/src/privy.ts";
+import { captureSignals } from "../../server/src/signals.ts";
 import { maintain, quoteBags, traderInterval } from "../../server/src/traders.ts";
 import type { Secrets } from "./env.ts";
 import { upgrade } from "./socket.ts";
@@ -236,6 +237,12 @@ export function prune(): Promise<void> {
   return Promise.resolve();
 }
 export const quotes = quoteBags;
+/** Freeze threshold crossings and any forward marks now backed by a post-horizon quote. */
+export const signals = (): Promise<void> => {
+  const { inserted, marked } = captureSignals(Math.floor(Date.now() / 1000));
+  if (inserted > 0 || marked > 0) log.info(`signals: ${inserted} new, ${marked} forward marks`);
+  return Promise.resolve();
+};
 export const traders = maintain;
 export { booksInterval, traderInterval };
 /** What the fomo session is doing: whether one was deployed at all, whether it can renew

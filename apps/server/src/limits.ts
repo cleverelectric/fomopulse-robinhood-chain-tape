@@ -23,6 +23,8 @@ export interface Limits {
     sweepSeconds: number;
     quoteSeconds: number;
     bagQuoteSeconds: number;
+    /** How often the backend freezes newly crossed Alpha thresholds and fills due forward marks. */
+    signalsSeconds: number;
     tradersSeconds: number;
     tradersColdSeconds: number;
     tradersRefusedSeconds: number;

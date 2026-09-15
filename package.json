@@ -24,6 +24,7 @@
     "format": "biome check --write .",
     "check": "bun run lint && bun run typecheck && bun test && bun run build",
     "verify": "bun run scripts/verify-tape.ts",
+    "backtest": "bun run scripts/backtest.ts",
     "rebuild": "bun run scripts/rebuild.ts",
     "roster": "bun run scripts/roster.ts",
     "assets": "bun run scripts/assets.ts",
